@@ -81,13 +81,13 @@ sub tell_nagios {
     elsif ($opt_u) {
       my $percent    = sprintf "%.1f", ($used / $total * 100);
       if ($percent >= $opt_c) {
-          finish("CRITICAL - $percent% ($used kB) used!|$perfdata",$exit_codes{'CRITICAL'});
+          finish("CRITICAL - $percent% ($used kB) used!$perfdata",$exit_codes{'CRITICAL'});
       }
       elsif ($percent >= $opt_w) {
-          finish("WARNING - $percent% ($used kB) used!|$perfdata",$exit_codes{'WARNING'});
+          finish("WARNING - $percent% ($used kB) used!$perfdata",$exit_codes{'WARNING'});
       }
       else {
-          finish("OK - $percent% ($used kB) used.|$perfdata",$exit_codes{'OK'});
+          finish("OK - $percent% ($used kB) used.$perfdata",$exit_codes{'OK'});
       }
     }
 }
