@@ -190,6 +190,25 @@ sub get_memory_info {
             $used_memory_kb = $total_memory_kb - $free_memory_kb;
         }
     }
+    elsif ( $uname =~ /AIX/ ) {
+        my @meminfo = `/usr/bin/vmstat -v`;
+        foreach (@meminfo) {
+            chomp;
+            if (/^\s*([0-9.]+)\s+(.*)/) {
+                my $counter_name = $2;
+                if ($counter_name eq 'memory pages') {
+                    $total_memory_kb = $1*4;
+                }
+                if ($counter_name eq 'free pages') {
+                    $free_memory_kb = $1*4;
+                }
+                if ($counter_name eq 'file pages') {
+                    $caches_kb = $1*4;
+                }
+            }
+        }
+        $used_memory_kb = $total_memory_kb - $free_memory_kb;
+    }
     else {
         if ($opt_C) {
             print "You can't report on $uname caches!\n";
