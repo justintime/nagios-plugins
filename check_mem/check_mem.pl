@@ -6,7 +6,7 @@
 # Justin Ellison <justin@techadvise.com>
 #
 # The MIT License (MIT)
-# Copyright (c) <year> <copyright holders>
+# Copyright (c) 2011 justin@techadvise.com
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy of this
 # software and associated documentation files (the "Software"), to deal in the Software
@@ -109,7 +109,7 @@ sub usage() {
   print "\nCopyright (C) 2000 Dan Larsson <dl\@tyfon.net>\n";
   print "check_mem.pl comes with absolutely NO WARRANTY either implied or explicit\n";
   print "This program is licensed under the terms of the\n";
-  print "GNU General Public License (check source code for details)\n";
+  print "MIT License (check source code for details)\n";
   exit $exit_codes{'UNKNOWN'}; 
 }
 
