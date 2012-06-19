@@ -143,7 +143,7 @@ sub get_memory_info {
                     $total_memory_kb = $2;
                 }
             }
-            elsif (/^(Buffers|Cached):\s+(\d+) kB/) {
+            elsif (/^(Buffers|Cached|SReclaimable):\s+(\d+) kB/) {
                 $caches_kb += $2;
             }
         }
