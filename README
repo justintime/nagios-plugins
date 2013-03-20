@@ -1,1 +1,1 @@
-Revision of check_mem.pl that splits out cache memory from application memory - see http://sysadminsjourney.com/content/2009/06/04/new-and-improved-checkmempl-nagios-plugin
+Repository for own, maintained or contributions to Nagios plugins. See http://www.claudiokuenzler.com/nagios-plugins 
