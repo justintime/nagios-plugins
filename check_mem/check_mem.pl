@@ -149,6 +149,38 @@ sub get_memory_info {
         }
         $used_memory_kb = $total_memory_kb - $free_memory_kb;
     }
+    elsif ( $uname =~ /FreeBSD/ ) {
+      # The FreeBSD case. 2013-03-19 www.claudiokuenzler.com
+      # free mem = Inactive*Page Size + Cache*Page Size + Free*Page Size
+      my $pagesize = `sysctl vm.stats.vm.v_page_size`;
+      $pagesize =~ s/[^0-9]//g;
+      my $mem_inactive = 0;
+      my $mem_cache = 0;
+      my $mem_free = 0;
+      my $mem_total = 0;
+      my $free_memory = 0;
+        my @meminfo = `/sbin/sysctl vm.stats.vm`;
+        foreach (@meminfo) {
+            chomp;
+            if (/^vm.stats.vm.v_inactive_count:\s+(\d+)/) {
+            $mem_inactive = ($1 * $pagesize);
+            }
+            elsif (/^vm.stats.vm.v_cache_count:\s+(\d+)/) {
+            $mem_cache = ($1 * $pagesize);
+            }
+            elsif (/^vm.stats.vm.v_free_count:\s+(\d+)/) {
+            $mem_free = ($1 * $pagesize);
+            }
+            elsif (/^vm.stats.vm.v_page_count:\s+(\d+)/) {
+            $mem_total = ($1 * $pagesize);
+            }
+        }
+        $free_memory = $mem_inactive + $mem_cache + $mem_free;
+        $free_memory_kb = ( $free_memory / 1024);
+        $total_memory_kb = ( $mem_total / 1024);
+        $used_memory_kb = $total_memory_kb - $free_memory_kb;
+        $caches_kb = ($mem_cache / 1024);
+    }
     elsif ( $uname =~ /SunOS/ ) {
         eval "use Sun::Solaris::Kstat";
         if ($@) { #Kstat not available
