@@ -149,6 +149,20 @@ sub get_memory_info {
         }
         $used_memory_kb = $total_memory_kb - $free_memory_kb;
     }
+    elsif ( $uname =~ /HP-UX/ ) {
+      # HP-UX, thanks to Christoph Fürstaller
+      my @meminfo = `/usr/bin/sudo /usr/local/bin/kmeminfo`;
+      foreach (@meminfo) {
+        chomp;
+      	if (/^Physical memory\s\s+=\s+(\d+)\s+(\d+.\d)g/) {
+      	  $total_memory_kb = ($2 * 1024 * 1024);
+      	}
+      	elsif (/^Free memory\s\s+=\s+(\d+)\s+(\d+.\d)g/) {
+      	  $free_memory_kb = ($2 * 1024 * 1024);
+      	}
+      }
+     $used_memory_kb = $total_memory_kb - $free_memory_kb;
+    }
     elsif ( $uname =~ /FreeBSD/ ) {
       # The FreeBSD case. 2013-03-19 www.claudiokuenzler.com
       # free mem = Inactive*Page Size + Cache*Page Size + Free*Page Size
