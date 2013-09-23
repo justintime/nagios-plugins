@@ -67,8 +67,18 @@ sub tell_nagios {
     my $total = $free + $used;
     print "$total Total\n" if ($opt_v);
 
-    my $perfdata = "|TOTAL=${total}KB;;;; USED=${used}KB;;;; FREE=${free}KB;;;; CACHES=${caches}KB;;;;";
+    my $perf_warn;
+    my $perf_crit;
+    if ( $opt_u ) {
+      $perf_warn = int(${total} * $opt_w / 100);
+      $perf_crit = int(${total} * $opt_c / 100);
+    } else {
+      $perf_warn = int(${total} * ( 100 - $opt_w ) / 100);
+      $perf_crit = int(${total} * ( 100 - $opt_c ) / 100);
+    }
     
+    my $perfdata = "|TOTAL=${total}KB;;;; USED=${used}KB;${perf_warn};${perf_crit};; FREE=${free}KB;;;; CACHES=${caches}KB;;;;";
+
     if ($opt_f) {
       my $percent    = sprintf "%.1f", ($free / $total * 100);
       if ($percent <= $opt_c) {
