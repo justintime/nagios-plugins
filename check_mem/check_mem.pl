@@ -33,8 +33,8 @@ use Getopt::Std;
 
 # Predefined exit codes for Nagios
 use vars qw($opt_c $opt_f $opt_u $opt_w $opt_C $opt_v %exit_codes);
-%exit_codes   = ('UNKNOWN' ,-1,
-        		 'OK'      , 0,
+%exit_codes   = ('UNKNOWN' , 3,
+        	 'OK'      , 0,
                  'WARNING' , 1,
                  'CRITICAL', 2,
                  );
