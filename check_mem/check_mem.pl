@@ -205,6 +205,26 @@ sub get_memory_info {
         $used_memory_kb = $total_memory_kb - $free_memory_kb;
         $caches_kb = ($mem_cache / 1024);
     }
+    elsif ( $uname =~ /joyent/ ) {
+      # The SmartOS case. 2014-01-10 www.claudiokuenzler.com
+      # free mem = pagesfree * pagesize
+      my $pagesize = `pagesize`;
+      my $phys_pages = `kstat -p unix:0:system_pages:pagestotal | awk '{print \$NF}'`;
+      my $free_pages = `kstat -p unix:0:system_pages:pagesfree | awk '{print \$NF}'`;
+      my $arc_size = `kstat -p zfs:0:arcstats:size | awk '{print \$NF}'`;
+      my $arc_size_kb = $arc_size / 1024;
+
+      print "Pagesize is $pagesize" if ($opt_v);
+      print "Total pages is $phys_pages" if ($opt_v);
+      print "Free pages is $free_pages" if ($opt_v);
+      print "Arc size is $arc_size" if ($opt_v);
+
+      $caches_kb += $arc_size_kb;
+
+      $total_memory_kb = $phys_pages * $pagesize / 1024;
+      $free_memory_kb = $free_pages * $pagesize / 1024;
+      $used_memory_kb = $total_memory_kb - $free_memory_kb;
+    }
     elsif ( $uname =~ /SunOS/ ) {
         eval "use Sun::Solaris::Kstat";
         if ($@) { #Kstat not available
