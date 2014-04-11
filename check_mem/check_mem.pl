@@ -4,6 +4,8 @@
 # check_mem.pl Copyright (C) 2000 Dan Larsson <dl@tyfon.net>
 # heavily modified by
 # Justin Ellison <justin@techadvise.com>
+# absolute limit checking by
+# Philip Seeger <philip.seeger@consol.de>
 #
 # The MIT License (MIT)
 # Copyright (c) 2011 justin@techadvise.com
@@ -61,42 +63,82 @@ tell_nagios($used_memory_kb,$free_memory_kb,$caches_kb);
 
 
 sub tell_nagios {
-    my ($used,$free,$caches) = @_;
-    
+    my ($used,$free,$caches) = @_; # KB
+
     # Calculate Total Memory
     my $total = $free + $used;
     print "$total Total\n" if ($opt_v);
 
+    # Absolute limits in KB
+    my $limit_warn;
+    my $limit_crit;
+
+    # WARN
+    if ($opt_w =~ /^((\d+)\s*([KMG]))$/) {
+        # SIZE INTEGER K|M|G
+        $limit_warn = $2;
+        $3 eq 'K' ? $limit_warn *= 1 :
+        $3 eq 'M' ? $limit_warn *= 1024 :
+        $3 eq 'G' ? $limit_warn *= 1024 * 1024 : die ;
+    }
+    elsif ($opt_w =~ /^([1-9]|[1-9][0-9])$/) {
+        # PERCENTAGE INTEGER 1-99
+        $limit_warn = int(${total} * $1 / 100);
+    }
+
+    # CRITICAL
+    if ($opt_c =~ /^((\d+)\s*([KMG]))$/) {
+        # SIZE INTEGER K|M|G
+        $limit_crit = $2;
+        $3 eq 'K' ? $limit_crit *= 1 :
+        $3 eq 'M' ? $limit_crit *= 1024 :
+        $3 eq 'G' ? $limit_crit *= 1024 * 1024 : die ;
+    }
+    elsif ($opt_c =~ /^([1-9]|[1-9][0-9])$/) {
+        # PERCENTAGE INTEGER 1-99
+        $limit_crit = int(${total} * $1 / 100);
+    }
+
     my $perf_warn;
     my $perf_crit;
-    if ( $opt_u ) {
-      $perf_warn = int(${total} * $opt_w / 100);
-      $perf_crit = int(${total} * $opt_c / 100);
-    } else {
-      $perf_warn = int(${total} * ( 100 - $opt_w ) / 100);
-      $perf_crit = int(${total} * ( 100 - $opt_c ) / 100);
+    if ( $opt_u ) { # used
+      $perf_warn = $limit_warn;
+      $perf_crit = $limit_crit;
+    } else { # free
+      $perf_warn = $total - $limit_warn; # TODO ?
+      $perf_crit = $total - $limit_crit; # TODO ?
     }
-    
+
+    # Check if levels are sane
+    if ($limit_warn <= $limit_crit and $opt_f) {
+      print "*** WARN level must not be less than CRITICAL when checking FREE memory!\n";
+      &usage;
+    }
+    elsif ($limit_warn >= $limit_crit and $opt_u) {
+      print "*** WARN level must not be greater than CRITICAL when checking USED memory!\n";
+      &usage;
+    }
+
     my $perfdata = "|TOTAL=${total}KB;;;; USED=${used}KB;${perf_warn};${perf_crit};; FREE=${free}KB;;;; CACHES=${caches}KB;;;;";
 
-    if ($opt_f) {
+    if ($opt_f) { # free
       my $percent    = sprintf "%.1f", ($free / $total * 100);
-      if ($percent <= $opt_c) {
+      if ($free < $limit_crit) {
           finish("CRITICAL - $percent% ($free kB) free!$perfdata",$exit_codes{'CRITICAL'});
       }
-      elsif ($percent <= $opt_w) {
+      elsif ($free < $limit_warn) {
           finish("WARNING - $percent% ($free kB) free!$perfdata",$exit_codes{'WARNING'});
       }
       else {
           finish("OK - $percent% ($free kB) free.$perfdata",$exit_codes{'OK'});
       }
     }
-    elsif ($opt_u) {
+    elsif ($opt_u) { # used
       my $percent    = sprintf "%.1f", ($used / $total * 100);
-      if ($percent >= $opt_c) {
+      if ($used > $limit_crit) {
           finish("CRITICAL - $percent% ($used kB) used!$perfdata",$exit_codes{'CRITICAL'});
       }
-      elsif ($percent >= $opt_w) {
+      elsif ($used > $limit_warn) {
           finish("WARNING - $percent% ($used kB) used!$perfdata",$exit_codes{'WARNING'});
       }
       else {
@@ -111,11 +153,25 @@ sub usage() {
   print "usage:\n";
   print " check_mem.pl -<f|u> -w <warnlevel> -c <critlevel>\n\n";
   print "options:\n";
-  print " -f           Check FREE memory\n";
-  print " -u           Check USED memory\n";
-  print " -C           Count OS caches as FREE memory\n";
-  print " -w PERCENT   Percent free/used when to warn\n";
-  print " -c PERCENT   Percent free/used when critical\n";
+  print " -f             Check FREE memory\n";
+  print " -u             Check USED memory\n";
+  print " -C             Count OS caches as FREE memory\n";
+  print " -w 1-99        Percent free/used when to warn\n";
+  print " -w SIZE K/M/G  Absolute size free/used when to warn\n";
+  print " -c 1-99        Percent free/used when critical\n";
+  print " -c SIZE K/M/G  Absolute size free/used when critical\n";
+  print "\nexample:\n";
+  print "check_mem.pl -C -f -w 20 -c 5\n";
+  print "\tReturns 1 (WARNING) if less than 20% free memory.\n";
+  print "\tReturns 2 (CRITICAL) if less than 5% free memory.\n";
+  print "\tTakes caches into account.\n";
+  print "check_mem.pl -u -w 80 -c 95\n";
+  print "\tReturns 1 (WARNING) if more than 80% memory in use.\n";
+  print "\tReturns 2 (CRITICAL) if more than 95% memory in use.\n";
+  print "check_mem.pl -C -f -w 2G -c 500M\n";
+  print "\tReturns 1 (WARNING) if less than 2G free memory.\n";
+  print "\tReturns 2 (CRITICAL) if less than 500M free memory.\n";
+  print "\tTakes caches into account.\n";
   print "\nCopyright (C) 2000 Dan Larsson <dl\@tyfon.net>\n";
   print "check_mem.pl comes with absolutely NO WARRANTY either implied or explicit\n";
   print "This program is licensed under the terms of the\n";
@@ -313,24 +369,24 @@ sub init {
     else {
       getopts('c:fuCvw:');
     }
-    
+
     # Shortcircuit the switches
-    if (!$opt_w or $opt_w == 0 or !$opt_c or $opt_c == 0) {
+    if (!$opt_w or !$opt_c) {
       print "*** You must define WARN and CRITICAL levels!\n";
+      &usage;
+    }
+    elsif ($opt_w !~ /^((\d+)\s*([KMG])|([1-9]|[1-9][0-9]))$/) {
+      # SIZE INTEGER K|M|G OR PERCENTAGE INTEGER 1-99
+      print "*** WARN level must be defined as PERCENTAGE (1 - 99) or SIZE K/M/G!\n";
+      &usage;
+    }
+    elsif ($opt_c !~ /^((\d+)\s*([KMG])|([1-9]|[1-9][0-9]))$/) {
+      # SIZE INTEGER K|M|G OR PERCENTAGE INTEGER 1-99
+      print "*** CRITICAL level must be defined as PERCENTAGE (1 - 99) or SIZE K/M/G!\n";
       &usage;
     }
     elsif (!$opt_f and !$opt_u) {
       print "*** You must select to monitor either USED or FREE memory!\n";
-      &usage;
-    }
-    
-    # Check if levels are sane
-    if ($opt_w <= $opt_c and $opt_f) {
-      print "*** WARN level must not be less than CRITICAL when checking FREE memory!\n";
-      &usage;
-    }
-    elsif ($opt_w >= $opt_c and $opt_u) {
-      print "*** WARN level must not be greater than CRITICAL when checking USED memory!\n";
       &usage;
     }
 }
