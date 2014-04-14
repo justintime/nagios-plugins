@@ -36,10 +36,10 @@ use Getopt::Std;
 # Predefined exit codes for Nagios
 use vars qw($opt_c $opt_f $opt_u $opt_w $opt_C $opt_v %exit_codes);
 %exit_codes   = ('UNKNOWN' , 3,
-        	 'OK'      , 0,
+        	     'OK'      , 0,
                  'WARNING' , 1,
                  'CRITICAL', 2,
-                 );
+                );
 
 # Get our variables, do our checking:
 init();
@@ -81,9 +81,17 @@ sub tell_nagios {
         $3 eq 'M' ? $limit_warn *= 1024 :
         $3 eq 'G' ? $limit_warn *= 1024 * 1024 : die ;
     }
-    elsif ($opt_w =~ /^([1-9]|[1-9][0-9])$/) {
-        # PERCENTAGE INTEGER 1-99
+    elsif ($opt_w =~ /^(?=.)(([0-9]*)(\.([0-9]+))?)$/) {
+        # PERCENTAGE (1, 95, 0.5)
+        if ($1 > 100) {
+            print "*** WARN percentage > 100%!\n";
+            &usage;
+        }
         $limit_warn = int(${total} * $1 / 100);
+    }
+    else {
+        print "*** WARN value not recognized!\n";
+        &usage;
     }
 
     # CRITICAL
@@ -94,9 +102,17 @@ sub tell_nagios {
         $3 eq 'M' ? $limit_crit *= 1024 :
         $3 eq 'G' ? $limit_crit *= 1024 * 1024 : die ;
     }
-    elsif ($opt_c =~ /^([1-9]|[1-9][0-9])$/) {
-        # PERCENTAGE INTEGER 1-99
+    elsif ($opt_c =~ /^(?=.)(([0-9]*)(\.([0-9]+))?)$/) {
+        # PERCENTAGE (1, 95, 0.5)
+        if ($1 > 100) {
+            print "*** CRIT percentage > 100%!\n";
+            &usage;
+        }
         $limit_crit = int(${total} * $1 / 100);
+    }
+    else {
+        print "*** CRIT value not recognized!\n";
+        &usage;
     }
 
     my $perf_warn;
@@ -105,8 +121,8 @@ sub tell_nagios {
       $perf_warn = $limit_warn;
       $perf_crit = $limit_crit;
     } else { # free
-      $perf_warn = $total - $limit_warn; # TODO ?
-      $perf_crit = $total - $limit_crit; # TODO ?
+      $perf_warn = $total - $limit_warn;
+      $perf_crit = $total - $limit_crit;
     }
 
     # Check if levels are sane
@@ -156,14 +172,14 @@ sub usage() {
   print " -f             Check FREE memory\n";
   print " -u             Check USED memory\n";
   print " -C             Count OS caches as FREE memory\n";
-  print " -w 1-99        Percent free/used when to warn\n";
+  print " -w PERCENTAGE  Percent free/used when to warn\n";
   print " -w SIZE K/M/G  Absolute size free/used when to warn\n";
-  print " -c 1-99        Percent free/used when critical\n";
+  print " -c PERCENTAGE  Percent free/used when critical\n";
   print " -c SIZE K/M/G  Absolute size free/used when critical\n";
   print "\nexample:\n";
-  print "check_mem.pl -C -f -w 20 -c 5\n";
+  print "check_mem.pl -C -f -w 20 -c .5\n";
   print "\tReturns 1 (WARNING) if less than 20% free memory.\n";
-  print "\tReturns 2 (CRITICAL) if less than 5% free memory.\n";
+  print "\tReturns 2 (CRITICAL) if less than 0.5% free memory.\n";
   print "\tTakes caches into account.\n";
   print "check_mem.pl -u -w 80 -c 95\n";
   print "\tReturns 1 (WARNING) if more than 80% memory in use.\n";
@@ -371,17 +387,17 @@ sub init {
     }
 
     # Shortcircuit the switches
-    if (!$opt_w or !$opt_c) {
+    if (! defined $opt_w or ! defined $opt_c) {
       print "*** You must define WARN and CRITICAL levels!\n";
       &usage;
     }
-    elsif ($opt_w !~ /^((\d+)\s*([KMG])|([1-9]|[1-9][0-9]))$/) {
-      # SIZE INTEGER K|M|G OR PERCENTAGE INTEGER 1-99
+    elsif ($opt_w !~ /^((\d+)\s*([KMG])|(?=.)(([0-9]*)(\.([0-9]+))?))$/) {
+      # SIZE INTEGER K|M|G OR PERCENTAGE INTEGER|FLOAT
       print "*** WARN level must be defined as PERCENTAGE (1 - 99) or SIZE K/M/G!\n";
       &usage;
     }
-    elsif ($opt_c !~ /^((\d+)\s*([KMG])|([1-9]|[1-9][0-9]))$/) {
-      # SIZE INTEGER K|M|G OR PERCENTAGE INTEGER 1-99
+    elsif ($opt_c !~ /^((\d+)\s*([KMG])|(?=.)(([0-9]*)(\.([0-9]+))?))$/) {
+      # SIZE INTEGER K|M|G OR PERCENTAGE INTEGER|FLOAT
       print "*** CRITICAL level must be defined as PERCENTAGE (1 - 99) or SIZE K/M/G!\n";
       &usage;
     }
