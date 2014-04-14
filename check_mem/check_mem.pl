@@ -4,8 +4,6 @@
 # check_mem.pl Copyright (C) 2000 Dan Larsson <dl@tyfon.net>
 # heavily modified by
 # Justin Ellison <justin@techadvise.com>
-# absolute limit checking by
-# Philip Seeger <philip.seeger@consol.de>
 #
 # The MIT License (MIT)
 # Copyright (c) 2011 justin@techadvise.com
