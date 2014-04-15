@@ -24,6 +24,42 @@
 # OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
 
+=head1 NAME
+
+check_mem.pl - Nagios Memory Checker Plugin
+
+=head1 SYNOPSIS
+
+    $ check_mem.pl -C -f -w 20 -c .5
+    OK - 20.3% (1663360 kB) free.|TOTAL=8177544KB;;;; USED=6514184KB;6542036;8136657;; FREE=1663360KB;;;; CACHES=1119540KB;;;;
+
+    $ check_mem.pl -u -w 80 -c 95
+    WARNING - 93.3% (7633244 kB) used!|TOTAL=8177544KB;;;; USED=7633244KB;6542035;7768666;; FREE=544300KB;;;; CACHES=1119660KB;;;;
+
+    $ check_mem.pl -C -f -w 2G -c 500M
+    WARNING - 20.4% (1664960 kB) free!|TOTAL=8177544KB;;;; USED=6512584KB;6080392;7665544;; FREE=1664960KB;;;; CACHES=1119652KB;;;;
+
+=head1 DESCRIPTION
+
+A Nagios plugin that checks memory usage.
+Returns WARNING or CRITICAL if usage values exceed defined threshold values.
+Threshold values can be defined as percentages (20) oder absolute sizes (500M).
+
+=head1 LICENSE
+
+The MIT License (MIT)
+Copyright (c) 2011 justin@techadvise.com
+
+=head1 AUTHOR
+
+Heavily based on the script from:
+check_mem.pl Copyright (C) 2000 Dan Larsson <dl@tyfon.net>
+
+Heavily modified by
+Justin Ellison <justin@techadvise.com>
+
+=cut
+
 # Tell Perl what we need to use
 use strict;
 use Getopt::Std;
