@@ -270,7 +270,7 @@ sub get_memory_info {
         }
     }
     elsif ( $uname =~ /AIX/ ) {
-        my @meminfo = `/usr/bin/vmstat -v`;
+        my @meminfo = `/usr/bin/vmstat -vh`;
         foreach (@meminfo) {
             chomp;
             if (/^\s*([0-9.]+)\s+(.*)/) {
@@ -283,6 +283,9 @@ sub get_memory_info {
                 }
                 if ($counter_name eq 'file pages') {
                     $caches_kb = $1*4;
+                }
+                if ($counter_name eq 'Number of 4k page frames loaned') {
+                    $free_memory_kb += $1*4;
                 }
             }
         }
