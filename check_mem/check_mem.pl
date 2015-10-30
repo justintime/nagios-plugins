@@ -269,6 +269,24 @@ sub get_memory_info {
             $used_memory_kb = $total_memory_kb - $free_memory_kb;
         }
     }
+    elsif ( $uname =~ /Darwin/ ) {
+        $total_memory_kb = (split(/ /,`/usr/sbin/sysctl hw.memsize`))[1]/1024;
+        my $pagesize     = (split(/ /,`/usr/sbin/sysctl hw.pagesize`))[1];
+        $caches_kb       = 0;
+        my @vm_stat = `/usr/bin/vm_stat`;
+        foreach (@vm_stat) {
+            chomp;
+            if (/^(Pages free):\s+(\d+)\.$/) {
+                $free_memory_kb = $2*$pagesize/1024;
+            }
+            # 'caching' concept works different on MACH
+            # this should be a reasonable approximation
+            elsif (/^Pages (inactive|purgable):\s+(\d+).$/) {
+                $caches_kb += $2*$pagesize/1024;
+            }
+        }
+        $used_memory_kb = $total_memory_kb - $free_memory_kb;
+    }
     elsif ( $uname =~ /AIX/ ) {
         my @meminfo = `/usr/bin/vmstat -vh`;
         foreach (@meminfo) {
