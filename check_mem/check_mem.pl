@@ -156,6 +156,9 @@ sub get_memory_info {
             elsif (/^(Buffers|Cached|SReclaimable):\s+(\d+) kB/) {
                 $caches_kb += $2;
             }
+            elsif (/^Shmem:\s+(\d+) kB/) {
+                $caches_kb -= $1;
+            }
         }
         $used_memory_kb = $total_memory_kb - $free_memory_kb;
     }
