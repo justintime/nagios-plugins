@@ -4,6 +4,7 @@
 # v1.1 2011-12-20  
 #
 
+$ds_name[1] = "Memory Usage";
 $opt[1] = "--title \"Statistics for $servicedesc on $hostname\" -l 0 -u $MAX[2] ";
 
 $def[1] = "DEF:total=$RRDFILE[1]:$DS[1]:AVERAGE ";
