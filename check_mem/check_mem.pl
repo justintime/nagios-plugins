@@ -171,6 +171,9 @@ sub get_memory_info {
             elsif (/^Shmem:\s+(\d+) kB/) {
                 $caches_kb -= $1;
             }
+            # These variables will most likely be overwritten once we look into
+            # /sys/kernel/mm/hugepages, unless we are running on linux <2.6.27
+            # and have to rely on them
             elsif (/^HugePages_Total:\s+(\d+)/) {
                 $hugepages_nr = $1;
             }
@@ -180,6 +183,27 @@ sub get_memory_info {
         }
         $hugepages_kb = $hugepages_nr * $hugepages_size;
         $used_memory_kb = $total_memory_kb - $free_memory_kb;
+
+        # Read hugepages info from the newer sysfs interface if available
+        my $hugepages_sysfs_dir = '/sys/kernel/mm/hugepages';
+        if ( -d $hugepages_sysfs_dir ) {
+            # Reset what we read from /proc/meminfo
+            $hugepages_kb = 0;
+            opendir(my $dh, $hugepages_sysfs_dir)
+                || die "Can't open $hugepages_sysfs_dir: $!";
+            while (my $entry = readdir $dh) {
+                if ($entry =~ /^hugepages-(\d+)kB/) {
+                    $hugepages_size = $1;
+                    my $hugepages_nr_file = "$hugepages_sysfs_dir/$entry/nr_hugepages";
+                    open(my $fh, '<', $hugepages_nr_file)
+                        || die "Can't open $hugepages_nr_file for reading: $!";
+                    $hugepages_nr = <$fh>;
+                    close($fh);
+                    $hugepages_kb += $hugepages_nr * $hugepages_size;
+                }
+            }
+            closedir($dh);
+        }
     }
     elsif ( $uname =~ /HP-UX/ ) {
       # HP-UX, thanks to Christoph Fürstaller
