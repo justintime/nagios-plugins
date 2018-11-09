@@ -34,7 +34,7 @@ use Getopt::Std;
 # Predefined exit codes for Nagios
 use vars qw($opt_c $opt_f $opt_u $opt_w $opt_C $opt_v $opt_h %exit_codes);
 %exit_codes   = ('UNKNOWN' , 3,
-        	 'OK'      , 0,
+                 'OK'      , 0,
                  'WARNING' , 1,
                  'CRITICAL', 2,
                  );
@@ -69,7 +69,7 @@ tell_nagios($used_memory_kb,$free_memory_kb,$caches_kb,$hugepages_kb);
 
 sub tell_nagios {
     my ($used,$free,$caches,$hugepages) = @_;
-    
+
     # Calculate Total Memory
     my $total = $free + $used;
     print "$total Total\n" if ($opt_v);
@@ -83,7 +83,7 @@ sub tell_nagios {
       $perf_warn = int(${total} * ( 100 - $opt_w ) / 100);
       $perf_crit = int(${total} * ( 100 - $opt_c ) / 100);
     }
-    
+
     my $perfdata = "|TOTAL=${total}KB;;;; USED=${used}KB;${perf_warn};${perf_crit};; FREE=${free}KB;;;; CACHES=${caches}KB;;;;";
     $perfdata .= " HUGEPAGES=${hugepages}KB;;;;" if ($opt_h);
 
@@ -122,14 +122,14 @@ sub usage() {
   print " -f           Check FREE memory\n";
   print " -u           Check USED memory\n";
   print " -C           Count OS caches as FREE memory\n";
-  print " -h 	       Remove hugepages from the total memory count\n";
+  print " -h           Remove hugepages from the total memory count\n";
   print " -w PERCENT   Percent free/used when to warn\n";
   print " -c PERCENT   Percent free/used when critical\n";
   print "\nCopyright (C) 2000 Dan Larsson <dl\@tyfon.net>\n";
   print "check_mem.pl comes with absolutely NO WARRANTY either implied or explicit\n";
   print "This program is licensed under the terms of the\n";
   print "MIT License (check source code for details)\n";
-  exit $exit_codes{'UNKNOWN'}; 
+  exit $exit_codes{'UNKNOWN'};
 }
 
 sub get_memory_info {
@@ -171,6 +171,9 @@ sub get_memory_info {
             elsif (/^Shmem:\s+(\d+) kB/) {
                 $caches_kb -= $1;
             }
+            # These variables will most likely be overwritten once we look into
+            # /sys/kernel/mm/hugepages, unless we are running on linux <2.6.27
+            # and have to rely on them
             elsif (/^HugePages_Total:\s+(\d+)/) {
                 $hugepages_nr = $1;
             }
@@ -180,18 +183,39 @@ sub get_memory_info {
         }
         $hugepages_kb = $hugepages_nr * $hugepages_size;
         $used_memory_kb = $total_memory_kb - $free_memory_kb;
+
+        # Read hugepages info from the newer sysfs interface if available
+        my $hugepages_sysfs_dir = '/sys/kernel/mm/hugepages';
+        if ( -d $hugepages_sysfs_dir ) {
+            # Reset what we read from /proc/meminfo
+            $hugepages_kb = 0;
+            opendir(my $dh, $hugepages_sysfs_dir)
+                || die "Can't open $hugepages_sysfs_dir: $!";
+            while (my $entry = readdir $dh) {
+                if ($entry =~ /^hugepages-(\d+)kB/) {
+                    $hugepages_size = $1;
+                    my $hugepages_nr_file = "$hugepages_sysfs_dir/$entry/nr_hugepages";
+                    open(my $fh, '<', $hugepages_nr_file)
+                        || die "Can't open $hugepages_nr_file for reading: $!";
+                    $hugepages_nr = <$fh>;
+                    close($fh);
+                    $hugepages_kb += $hugepages_nr * $hugepages_size;
+                }
+            }
+            closedir($dh);
+        }
     }
     elsif ( $uname =~ /HP-UX/ ) {
       # HP-UX, thanks to Christoph Fürstaller
       my @meminfo = `/usr/bin/sudo /usr/local/bin/kmeminfo`;
       foreach (@meminfo) {
         chomp;
-      	if (/^Physical memory\s\s+=\s+(\d+)\s+(\d+.\d)g/) {
-      	  $total_memory_kb = ($2 * 1024 * 1024);
-      	}
-      	elsif (/^Free memory\s\s+=\s+(\d+)\s+(\d+.\d)g/) {
-      	  $free_memory_kb = ($2 * 1024 * 1024);
-      	}
+        if (/^Physical memory\s\s+=\s+(\d+)\s+(\d+.\d)g/) {
+            $total_memory_kb = ($2 * 1024 * 1024);
+        }
+        elsif (/^Free memory\s\s+=\s+(\d+)\s+(\d+.\d)g/) {
+            $free_memory_kb = ($2 * 1024 * 1024);
+        }
       }
      $used_memory_kb = $total_memory_kb - $free_memory_kb;
     }
@@ -268,7 +292,7 @@ sub get_memory_info {
                 }
             }
             $used_memory_kb = $total_memory_kb - $free_memory_kb;
-            
+
         }
         else { # We have kstat
             my $kstat = Sun::Solaris::Kstat->new();
@@ -278,14 +302,14 @@ sub get_memory_info {
             # to me how to determine UFS's cache size.  There's inode_cache,
             # and maybe the physmem variable in the system_pages module??
             # In the real world, it looks to be so small as not to really matter,
-            # so we don't grab it.  If someone can give me code that does this, 
+            # so we don't grab it.  If someone can give me code that does this,
             # I'd be glad to put it in.
             my $arc_size = (exists ${kstat}->{zfs} && ${kstat}->{zfs}->{0}->{arcstats}->{size}) ?
-                 ${kstat}->{zfs}->{0}->{arcstats}->{size} / 1024 
+                 ${kstat}->{zfs}->{0}->{arcstats}->{size} / 1024
                  : 0;
             $caches_kb += $arc_size;
             my $pagesize = `pagesize`;
-    
+
             $total_memory_kb = $phys_pages * $pagesize / 1024;
             $free_memory_kb = $free_pages * $pagesize / 1024;
             $used_memory_kb = $total_memory_kb - $free_memory_kb;
@@ -336,10 +360,10 @@ sub get_memory_info {
             print "You can't report on $uname caches!\n";
             exit $exit_codes{UNKNOWN};
         }
-    	my $command_line = `vmstat | tail -1 | awk '{print \$4,\$5}'`;
-    	chomp $command_line;
+        my $command_line = `vmstat | tail -1 | awk '{print \$4,\$5}'`;
+        chomp $command_line;
         my @memlist      = split(/ /, $command_line);
-    
+
         # Define the calculating scalars
         $used_memory_kb  = $memlist[0]/1024;
         $free_memory_kb = $memlist[1]/1024;
@@ -356,7 +380,7 @@ sub init {
     else {
       getopts('c:fuChvw:');
     }
-    
+
     # Shortcircuit the switches
     if (!$opt_w or $opt_w == 0 or !$opt_c or $opt_c == 0) {
       print "*** You must define WARN and CRITICAL levels!\n";
@@ -366,7 +390,7 @@ sub init {
       print "*** You must select to monitor either USED or FREE memory!\n";
       &usage;
     }
-    
+
     # Check if levels are sane
     if ($opt_w <= $opt_c and $opt_f) {
       print "*** WARN level must not be less than CRITICAL when checking FREE memory!\n";
