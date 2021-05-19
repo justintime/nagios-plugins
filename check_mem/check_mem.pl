@@ -59,9 +59,9 @@ if ($opt_h) {
 print "$used_memory_kb Used (after Hugepages)\n" if ($opt_v);
 
 # Round to the nearest KB
-$free_memory_kb = sprintf('%d',$free_memory_kb);
-$used_memory_kb = sprintf('%d',$used_memory_kb);
-$caches_kb = sprintf('%d',$caches_kb);
+$free_memory_kb = sprintf('%.0f',$free_memory_kb);
+$used_memory_kb = sprintf('%.0f',$used_memory_kb);
+$caches_kb = sprintf('%.0f',$caches_kb);
 
 # Tell Nagios what we came up with
 tell_nagios($used_memory_kb,$free_memory_kb,$caches_kb,$hugepages_kb);
