@@ -32,7 +32,7 @@ use Getopt::Std;
 #TODO - Use an alarm
 
 # Predefined exit codes for Nagios
-use vars qw($opt_c $opt_f $opt_u $opt_w $opt_C $opt_v $opt_h %exit_codes);
+use vars qw($opt_c $opt_f $opt_u $opt_a $opt_w $opt_C $opt_v $opt_h %exit_codes);
 %exit_codes   = ('UNKNOWN' , 3,
                  'OK'      , 0,
                  'WARNING' , 1,
@@ -43,8 +43,9 @@ use vars qw($opt_c $opt_f $opt_u $opt_w $opt_C $opt_v $opt_h %exit_codes);
 init();
 
 # Get the numbers:
-my ($free_memory_kb,$used_memory_kb,$caches_kb,$hugepages_kb) = get_memory_info();
+my ($free_memory_kb,$used_memory_kb,$caches_kb,$available_memory_kb,$hugepages_kb) = get_memory_info();
 print "$free_memory_kb Free\n$used_memory_kb Used\n$caches_kb Cache\n" if ($opt_v);
+print "$available_memory_kb Available\n" if ($opt_v and $opt_a);
 print "$hugepages_kb Hugepages\n" if ($opt_v and $opt_h);
 
 if ($opt_C) { #Do we count caches as free?
@@ -64,11 +65,11 @@ $used_memory_kb = sprintf('%.0f',$used_memory_kb);
 $caches_kb = sprintf('%.0f',$caches_kb);
 
 # Tell Nagios what we came up with
-tell_nagios($used_memory_kb,$free_memory_kb,$caches_kb,$hugepages_kb);
+tell_nagios($used_memory_kb,$free_memory_kb,$caches_kb,$available_memory_kb,$hugepages_kb);
 
 
 sub tell_nagios {
-    my ($used,$free,$caches,$hugepages) = @_;
+    my ($used,$free,$caches,$available,$hugepages) = @_;
 
     # Calculate Total Memory
     my $total = $free + $used;
@@ -76,7 +77,7 @@ sub tell_nagios {
 
     my $perf_warn;
     my $perf_crit;
-    if ( $opt_u ) {
+    if ( $opt_u or $opt_a ) {
       $perf_warn = int(${total} * $opt_w / 100);
       $perf_crit = int(${total} * $opt_c / 100);
     } else {
@@ -84,7 +85,15 @@ sub tell_nagios {
       $perf_crit = int(${total} * ( 100 - $opt_c ) / 100);
     }
 
-    my $perfdata = "|TOTAL=${total}KB;;;; USED=${used}KB;${perf_warn};${perf_crit};; FREE=${free}KB;;;; CACHES=${caches}KB;;;;";
+    my $perfdata = "|TOTAL=${total}KB;;;;";
+    if ( !$opt_a ) {
+      $perfdata .= " USED=${used}KB;${perf_warn};${perf_crit};;";
+    } else {
+      $perfdata .= " USED=${used}KB;;;;";
+    }
+    $perfdata .= " FREE=${free}KB;;;;";
+    $perfdata .= " CACHES=${caches}KB;;;;";
+    $perfdata .= " AVAILABLE=${available}KB;${perf_warn};${perf_crit};;" if ($opt_a);
     $perfdata .= " HUGEPAGES=${hugepages}KB;;;;" if ($opt_h);
 
     if ($opt_f) {
@@ -97,6 +106,18 @@ sub tell_nagios {
       }
       else {
           finish("OK - $percent% ($free kB) free.$perfdata",$exit_codes{'OK'});
+      }
+    }
+    elsif ($opt_a) {
+      my $percent    = sprintf "%.1f", ($available / $total * 100);
+      if ($percent <= $opt_c) {
+          finish("CRITICAL - $percent% ($available kB) available!$perfdata",$exit_codes{'CRITICAL'});
+      }
+      elsif ($percent <= $opt_w) {
+          finish("WARNING - $percent% ($available kB) available!$perfdata",$exit_codes{'WARNING'});
+      }
+      else {
+          finish("OK - $percent% ($available kB) available.$perfdata",$exit_codes{'OK'});
       }
     }
     elsif ($opt_u) {
@@ -117,10 +138,11 @@ sub tell_nagios {
 sub usage() {
   print "\ncheck_mem.pl v1.0 - Nagios Plugin\n\n";
   print "usage:\n";
-  print " check_mem.pl -<f|u> -w <warnlevel> -c <critlevel>\n\n";
+  print " check_mem.pl -<f|u|a> -w <warnlevel> -c <critlevel>\n\n";
   print "options:\n";
   print " -f           Check FREE memory\n";
   print " -u           Check USED memory\n";
+  print " -a           Check AVAILABLE memory (only Linux)\n";
   print " -C           Count OS caches as FREE memory\n";
   print " -h           Remove hugepages from the total memory count\n";
   print " -w PERCENT   Percent free/used when to warn\n";
@@ -140,6 +162,7 @@ sub get_memory_info {
     my $hugepages_nr    = 0;
     my $hugepages_size  = 0;
     my $hugepages_kb    = 0;
+    my $available_memory_kb = 0;
 
     my $uname;
     if ( -e '/usr/bin/uname') {
@@ -170,6 +193,9 @@ sub get_memory_info {
             }
             elsif (/^Shmem:\s+(\d+) kB/) {
                 $caches_kb -= $1;
+            }
+            elsif (/^MemAvailable:\s+(\d+) kB/) {
+                $available_memory_kb = $1;
             }
             # These variables will most likely be overwritten once we look into
             # /sys/kernel/mm/hugepages, unless we are running on linux <2.6.27
@@ -369,7 +395,7 @@ sub get_memory_info {
         $free_memory_kb = $memlist[1]/1024;
         $total_memory_kb = $used_memory_kb + $free_memory_kb;
     }
-    return ($free_memory_kb,$used_memory_kb,$caches_kb,$hugepages_kb);
+    return ($free_memory_kb,$used_memory_kb,$caches_kb,$available_memory_kb,$hugepages_kb);
 }
 
 sub init {
@@ -378,7 +404,7 @@ sub init {
       &usage;
     }
     else {
-      getopts('c:fuChvw:');
+      getopts('c:fuaChvw:');
     }
 
     # Shortcircuit the switches
@@ -386,8 +412,12 @@ sub init {
       print "*** You must define WARN and CRITICAL levels!\n";
       &usage;
     }
-    elsif (!$opt_f and !$opt_u) {
-      print "*** You must select to monitor either USED or FREE memory!\n";
+    elsif (!$opt_f and !$opt_u and !$opt_a) {
+      print "*** You must select to monitor USED, FREE or AVAILABLE memory!\n";
+      &usage;
+    }
+    elsif ($opt_f and $opt_u or $opt_f and $opt_a or $opt_u and $opt_a) {
+      print "*** You must select to monitor either USED, FREE or AVAILABLE memory!\n";
       &usage;
     }
 
