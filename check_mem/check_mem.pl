@@ -121,51 +121,51 @@ sub tell_nagios {
         &usage;
     }
 
-    my $perfdata = "|TOTAL=${total}KB;;;;";
+    my $perfdata = "|TOTAL=${total}MB;;;;";
     if ( !$opt_a ) {
-      $perfdata .= " USED=${used}KB;${perf_warn};${perf_crit};;";
+      $perfdata .= " USED=${used}MB;${perf_warn};${perf_crit};;";
     } else {
-      $perfdata .= " USED=${used}KB;;;;";
+      $perfdata .= " USED=${used}MB;;;;";
     }
-    $perfdata .= " FREE=${free}KB;;;;";
-    $perfdata .= " CACHES=${caches}KB;;;;";
-    $perfdata .= " AVAILABLE=${available}KB;${perf_warn};${perf_crit};;" if ($opt_a);
-    $perfdata .= " HUGEPAGES=${hugepages}KB;;;;" if ($opt_h);
+    $perfdata .= " FREE=${free}MB;;;;";
+    $perfdata .= " CACHES=${caches}MB;;;;";
+    $perfdata .= " AVAILABLE=${available}MB;${perf_warn};${perf_crit};;" if ($opt_a);
+    $perfdata .= " HUGEPAGES=${hugepages}MB;;;;" if ($opt_h);
 
     if ($opt_f) { # free
       my $percent    = sprintf "%.1f", ($free / $total * 100);
       if ($free < $limit_crit) {
-          finish("CRITICAL - $percent% ($free kB) free-$type_check!$perfdata",$exit_codes{'CRITICAL'});
+          finish("CRITICAL - $percent% ($free MB) free-$type_check!$perfdata",$exit_codes{'CRITICAL'});
       }
       elsif ($free < $limit_warn) {
-          finish("WARNING - $percent% ($free kB) free-$type_check!$perfdata",$exit_codes{'WARNING'});
+          finish("WARNING - $percent% ($free MB) free-$type_check!$perfdata",$exit_codes{'WARNING'});
       }
       else {
-          finish("OK - $percent% ($free kB) free-$type_check.$perfdata",$exit_codes{'OK'});
+          finish("OK - $percent% ($free MB) free-$type_check.$perfdata",$exit_codes{'OK'});
       }
     }
     elsif ($opt_a) { # available
       my $percent    = sprintf "%.1f", ($available / $total * 100);
       if ($available  <= $limit_crit) {
-          finish("CRITICAL - $percent% ($available kB) available-$type_check!$perfdata",$exit_codes{'CRITICAL'});
+          finish("CRITICAL - $percent% ($available MB) available-$type_check!$perfdata",$exit_codes{'CRITICAL'});
       }
       elsif ($available  <= $limit_warn) {
-          finish("WARNING - $percent% ($available kB) available-$type_check!$perfdata",$exit_codes{'WARNING'});
+          finish("WARNING - $percent% ($available MB) available-$type_check!$perfdata",$exit_codes{'WARNING'});
       }
       else {
-          finish("OK - $percent% ($available kB) available-$type_check.$perfdata",$exit_codes{'OK'});
+          finish("OK - $percent% ($available MB) available-$type_check.$perfdata",$exit_codes{'OK'});
       }
     }
     elsif ($opt_u) {  # used
       my $percent    = sprintf "%.1f", ($used / $total * 100);
       if ($used > $limit_crit) {
-          finish("CRITICAL - $percent% ($used kB) used-$type_check!$perfdata",$exit_codes{'CRITICAL'});
+          finish("CRITICAL - $percent% ($used MB) used-$type_check!$perfdata",$exit_codes{'CRITICAL'});
       }
       elsif ($used > $limit_warn) {
-          finish("WARNING - $percent% ($used kB) used-$type_check!$perfdata",$exit_codes{'WARNING'});
+          finish("WARNING - $percent% ($used MB) used-$type_check!$perfdata",$exit_codes{'WARNING'});
       }
       else {
-          finish("OK - $percent% ($used kB) used-$type_check.$perfdata",$exit_codes{'OK'});
+          finish("OK - $percent% ($used MB) used-$type_check.$perfdata",$exit_codes{'OK'});
       }
     }
 }
@@ -445,7 +445,7 @@ sub get_memory_info {
         $free_memory_kb = $memlist[1]/1024;
         $total_memory_kb = $used_memory_kb + $free_memory_kb;
     }
-    return ($free_memory_kb,$used_memory_kb,$caches_kb,$available_memory_kb,$hugepages_kb);
+    return ($free_memory_kb/1000,$used_memory_kb/1000,$caches_kb/1000,$available_memory_kb/1000,$hugepages_kb/1000);
 }
 
 sub parameterize_thresholds{
