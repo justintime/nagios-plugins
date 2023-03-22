@@ -403,7 +403,7 @@ sub get_memory_info {
             }
             # 'caching' concept works different on MACH
             # this should be a reasonable approximation
-            elsif (/^Pages (inactive|purgable):\s+(\d+).$/) {
+            elsif (/^Pages (inactive|purgeable):\s+(\d+).$/) {
                 $caches_kb += $2*$pagesize/1024;
             }
         }
